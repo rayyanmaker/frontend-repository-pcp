@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assessment Dataset Viewer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --surface-color: rgba(20, 25, 35, 0.6);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            
+            --primary-accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.5);
+            
+            /* JSON Colors */
+            --json-key: #7dd3fc;
+            --json-string: #86efac;
+            --json-number: #fdba74;
+            --json-boolean: #f472b6;
+            --json-null: #a1a1aa;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 2rem 4rem;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(11, 15, 25, 0.7);
+            backdrop-filter: blur(16px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.75rem;
+            font-weight: 600;
+            background: linear-gradient(to right, #60a5fa, #34d399);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            background-color: rgba(59, 130, 246, 0.1);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn:hover {
+            background-color: rgba(59, 130, 246, 0.2);
+            box-shadow: 0 0 15px var(--accent-glow);
+            transform: translateY(-2px);
+        }
+
+        main {
+            padding: 3rem 4rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .data-container {
+            width: 100%;
+            max-width: 1000px;
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .data-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 1rem;
+            background: rgba(16, 185, 129, 0.1);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+        }
+
+        .status-badge.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: #f87171;
+            border-color: rgba(239, 68, 68, 0.2);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: currentColor;
+            box-shadow: 0 0 8px currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        /* JSON Viewer Styles */
+        .json-viewer {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: var(--text-primary);
+        }
+
+        .json-block { margin-left: 1.5rem; border-left: 1px dashed rgba(255,255,255,0.1); padding-left: 1rem; }
+        .json-key { color: var(--json-key); font-weight: 500; }
+        .json-string { color: var(--json-string); }
+        .json-number { color: var(--json-number); }
+        .json-boolean { color: var(--json-boolean); font-weight: 500;}
+        .json-null { color: var(--json-null); font-style: italic; }
+        
+        .toggle-btn {
+            cursor: pointer;
+            user-select: none;
+            color: var(--text-secondary);
+            transition: color 0.2s;
+            margin-right: 0.25rem;
+        }
+        .toggle-btn:hover { color: var(--text-primary); }
+
+        .loader {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4rem 0;
+            color: var(--text-secondary);
+            gap: 1rem;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: var(--primary-accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Dataset Explorer</h1>
+        <button class="btn" onclick="fetchDataset()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v6h6"></path><path d="M3 12a9 9 0 1 0 9 9 9.75 9.75 0 0 0-6.74-2.74L3 16"></path></svg>
+            Refresh Data
+        </button>
+    </header>
+
+    <main>
+        <div class="data-container">
+            <div class="data-header">
+                <div>
+                    <h2 style="margin: 0; font-size: 1.25rem; font-weight: 500;">API Response</h2>
+                    <p style="margin: 0.25rem 0 0 0; color: var(--text-secondary); font-size: 0.875rem;">Source: t4e-testserver.onrender.com</p>
+                </div>
+                <div id="status-badge" class="status-badge">
+                    <div class="status-dot"></div>
+                    <span id="status-text">Fetching...</span>
+                </div>
+            </div>
+
+            <div id="viewer-content">
+                <div class="loader">
+                    <div class="spinner"></div>
+                    <p>Connecting to backend server...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_URL = 'http://localhost:8000/api/dataset';
+        
+        const viewerContent = document.getElementById('viewer-content');
+        const statusBadge = document.getElementById('status-badge');
+        const statusText = document.getElementById('status-text');
+
+        // Function to create HTML from JSON dynamically
+        function createJSONTree(data) {
+            if (data === null) return `<span class="json-null">null</span>`;
+            
+            const type = typeof data;
+            
+            if (type === 'string') return `<span class="json-string">"${data}"</span>`;
+            if (type === 'number') return `<span class="json-number">${data}</span>`;
+            if (type === 'boolean') return `<span class="json-boolean">${data}</span>`;
+            
+            if (type === 'object') {
+                const isArray = Array.isArray(data);
+                const keys = Object.keys(data);
+                
+                if (keys.length === 0) return isArray ? '[]' : '{}';
+                
+                let html = `<span class="toggle-btn" onclick="toggleBlock(this)">▼</span>${isArray ? '[' : '{'}<div class="json-block">`;
+                
+                keys.forEach((key, index) => {
+                    const value = data[key];
+                    const isLast = index === keys.length - 1;
+                    
+                    html += `<div>`;
+                    if (!isArray) {
+                        html += `<span class="json-key">"${key}"</span>: `;
+                    }
+                    html += `${createJSONTree(value)}${isLast ? '' : ','}`;
+                    html += `</div>`;
+                });
+                
+                html += `</div>${isArray ? ']' : '}'}`;
+                return html;
+            }
+            
+            return `<span>${data}</span>`;
+        }
+
+        // Collapse/Expand toggle for JSON objects
+        window.toggleBlock = function(element) {
+            const block = element.nextSibling.nextSibling; // gets the .json-block
+            if (block.style.display === 'none') {
+                block.style.display = 'block';
+                element.innerText = '▼';
+            } else {
+                block.style.display = 'none';
+                element.innerText = '▶';
+            }
+        };
+
+        // Fetch Data from Local Backend
+        async function fetchDataset() {
+            // Reset UI
+            viewerContent.innerHTML = `
+                <div class="loader">
+                    <div class="spinner"></div>
+                    <p>Fetching latest data...</p>
+                </div>`;
+            statusBadge.className = 'status-badge';
+            statusText.innerText = 'Fetching...';
+
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}`);
+                }
+                const result = await response.json();
+                
+                // Update UI with Data
+                statusBadge.className = 'status-badge';
+                statusText.innerText = 'Connected';
+                
+                viewerContent.innerHTML = `<div class="json-viewer">${createJSONTree(result)}</div>`;
+
+            } catch (error) {
+                console.error('Error fetching dataset:', error);
+                
+                statusBadge.className = 'status-badge error';
+                statusText.innerText = 'Connection Error';
+                
+                viewerContent.innerHTML = `
+                    <div style="text-align: center; color: #f87171; padding: 2rem;">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-bottom: 1rem;">
+                            <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <h3 style="margin:0 0 0.5rem 0;">Failed to fetch data</h3>
+                        <p style="margin:0; color: var(--text-secondary);">Ensure your Python backend (uvicorn backend_server:app) is running.</p>
+                        <p style="margin:1rem 0 0 0; font-family: monospace; background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 4px;">Error: ${error.message}</p>
+                    </div>`;
+            }
+        }
+
+        // Load on startup
+        fetchDataset();
+    </script>
+</body>
+</html>
